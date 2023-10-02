@@ -26,11 +26,11 @@
 * Your new counter32 subcircuit code should go here.
 *******************************************************************************
 .subckt counter32 reset a[31:0] f[31:0] clk
-    .connect reset reset[31:0]
+    * .connect reset reset[31:0]
     .connect clk clk[31:0]
     .connect 0 zeroeset[31:0]
     Xadd32 a[31:0] f[31:0] 0 sum[31:0] carry_out[31:30] add32
-    Xmux2 reset[31:0] sum[31:0] zeroeset[31:0] z[31:0] mux2
+    Xmux2 reset#32 sum[31:0] zeroeset[31:0] z[31:0] mux2
     Xdreg z[31:0] clk[31:0] f[31:0] dreg
 .ends
 
