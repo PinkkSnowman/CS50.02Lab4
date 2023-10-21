@@ -29,16 +29,14 @@
 
 .subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z
     .connect op0 op0[31:0]
-    xzero zero constant0
-    xone one constant1
-    xinverter b[31:0] ib[31:0] inverter
-    xop0 op0[31:0] b[31:0] ib[31:0] z[31:0] mux2
+    xinverter b[31:0] invertedb[31:0] inverter
+    xop0 op0[31:0] b[31:0] invertedb[31:0] z[31:0] mux2
     xadd32 a[31:0] z[31:0] op0 fas[31:0] v1 v2 add32
     .connect fas31 n
     xv v1 v2 v xor2
-    xzone fas[31:24] fas[23:16] fas[15:8] fas[7:0] zone[7:0] nor4
-    xztwo zone[7:6] zone[5:4] zone[3:2] zone[1:0] ztwo[1:0] nand4
-    xz ztwo1 ztwo0 z nor2
+    xzfirst fas[31:24] fas[23:16] fas[15:8] fas[7:0] zfirst[7:0] nor4
+    xzsecond zfirst[7:6] zfirst[5:4] zfirst[3:2] zfirst[1:0] zsecond[1:0] nand4
+    xz zsecond1 zsecond0 z nor2
 .ends
 
 *******************************************************************************
@@ -48,19 +46,19 @@
 .subckt cmp32 n v z op[2:1] fcmp[31:0]
   xzero zero constant0
   .connect zero fcmp[31:1]
-  xop2 op2 zero nv outputone mux2
+  xop2 op2 zero nv first mux2
   xor n v nv xor2
-  xop1 op1 zero z outputtwo mux2
-  xoutput outputone outputtwo fcmp0 or2
+  xop1 op1 zero z second mux2
+  xoutput first second fcmp0 or2
 .ends
 
 Xas32 a[31:0] b[31:0] op0 fas[31:0] n v z as32
 Xcmp32 n v z op[2:1] fcmp[31:0] cmp32
 
 Wa a[31:0] nrz(0, 5, 20ns, 0ns, 0.001ns, 0.001ns)
-+ 5 4 8 100 129 20 2000 201 156
++ 20 11 2 111 21 22 2000 313 42
 Wb b[31:0] nrz(0, 5, 20ns, 0ns, 0.001ns, 0.001ns)
-+ 5 2 8 120 412 17 1888 301 218
++ 12 9 2 999 22 21 1003 414 69
 
 Wop0 op0 nrz(0, 5, 20ns, 0ns, 0.001ns, 0.001ns)
 + 0 1
