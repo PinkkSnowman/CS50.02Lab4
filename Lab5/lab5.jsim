@@ -5,6 +5,7 @@
 *******************************************************************************
 * Plug-in your full adder and 32-bit ripple-carry adder subcircuits here.
 *******************************************************************************
+
 .subckt fa a b carry_in sum_out carry_out
     Xfirst a b sum1 nand2
     Xsecond a sum1 sum2 nand2
@@ -21,7 +22,6 @@
 .subckt add32 a[31:0] b[31:0] carry_in0 sum[31:0] carry_out[31:30]
     Xfa a[31:0] b[31:0] carry_out[30:0] carry_in0 sum[31:0] carry_out[31:0] fa
 .ends
-
 
 *******************************************************************************
 * Subtractor
@@ -40,7 +40,7 @@
 .ends
 
 *******************************************************************************
-* comparator
+* Comparator
 *******************************************************************************
 
 .subckt cmp32 n v z op[2:1] fcmp[31:0]
@@ -68,7 +68,6 @@ Wop1 op1 nrz(0, 5, 20ns, 0ns, 0.001ns, 0.001ns)
 Wop2 op2 nrz(0, 5, 20ns, 0ns, 0.001ns, 0.001ns)
 + 0 0 0 1 1
 
-
 .tran 300ns
 .plot sd(a[31:0])
 .plot sd(b[31:0])
@@ -80,3 +79,8 @@ Wop2 op2 nrz(0, 5, 20ns, 0ns, 0.001ns, 0.001ns)
 .plot op0
 .plot op1
 .plot op2
+
+* From all the nodes identified in the Chaining Diagram, identify the nodes that
+* comprise the “critical path” of the circuit, and explain why are they critical
+
+* b0 -> as32 -> inverter -> mux2 -> z0 -> add32 -> fas0 -> zfirst[7:0] -> z -> cmp32 -> fcmp0
