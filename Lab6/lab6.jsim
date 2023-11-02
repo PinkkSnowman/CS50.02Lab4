@@ -1,0 +1,110 @@
+.include "8clocks.jsim"
+.include "nominal.jsim"
+.include "stdcell.jsim"
+
+*******************************************************************************
+* Plug-in your full adder and 32-bit ripple-carry adder subcircuits here.
+*******************************************************************************
+
+.subckt fa a b carry_in sum_out carry_out
+    Xfirst a b sum1 nand2
+    Xsecond a sum1 sum2 nand2
+    Xthird b sum1 sum3 nand2
+    Xha_out sum2 sum3 ha_out nand2
+
+    Xfourth ha_out carry_in sum4 nand2
+    Xfifth ha_out sum4 sum5 nand2
+    Xsixth carry_in sum4 sum6 nand2
+    Xsum_out sum5 sum6 sum_out nand2
+    Xcarry_out sum4 sum1 carry_out nand2
+.ends
+
+.subckt add32 a[31:0] b[31:0] carry_in0 sum[31:0] carry_out[31:30]
+    Xfa a[31:0] b[31:0] carry_out[30:0] carry_in0 sum[31:0] carry_out[31:0] fa
+.ends
+
+*******************************************************************************
+* Subtractor
+*******************************************************************************
+
+.subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z
+    .connect op0 op0[31:0]
+    xinverter b[31:0] invertedb[31:0] inverter
+    xop0 op0[31:0] b[31:0] invertedb[31:0] z[31:0] mux2
+    xadd32 a[31:0] z[31:0] op0 fas[31:0] v1 v2 add32
+    .connect fas31 n
+    xv v1 v2 v xor2
+    xzfirst fas[31:24] fas[23:16] fas[15:8] fas[7:0] zfirst[7:0] nor4
+    xzsecond zfirst[7:6] zfirst[5:4] zfirst[3:2] zfirst[1:0] zsecond[1:0] nand4
+    xz zsecond1 zsecond0 z nor2
+.ends
+
+*******************************************************************************
+* Comparator
+*******************************************************************************
+
+.subckt cmp32 n v z op[2:1] fcmp[31:0]
+    xzero zero constant0
+    .connect zero fcmp[31:1]
+    xop2 op2 zero nv first mux2
+    xor n v nv xor2
+    xop1 op1 zero z second mux2
+    xoutput first second fcmp0 or2
+.ends
+
+Xas32 a[31:0] b[31:0] op0 fas[31:0] n v z as32
+Xcmp32 n v z op[2:1] fcmp[31:0] cmp32
+
+
+* 2. Define the subcircuit bool32:
+.subckt bool32 a[31:0] b[31:0] op[3:0] fbool[31:0]
+    Xfbool a[31:0] b[31:0] op0#32 op1#32 op2#32 op3#32 fbool[31:0] mux4
+.ends
+
+
+* 3. Define the subcircuit shift32:
+.subckt shift32 a[31:0] b[4:0] op[1:0] fshift[31:0]
+    Xbits op0#32 a[31:0] a[0:31] bits[31:0] mux2
+    Xdigit op1 a31 digit and2
+    Xshift16 b4#32 bits[31:0] bits[15:0] digit#16 bitfour[31:0] mux2
+    Xshift8 b3#32 bitfour[31:0] bitfour[23:0] digit#8 bitthree[31:0] mux2
+    Xshift4 b2#32 bitthree[31:0] bitthree[27:0] digit#4 bittwo[31:0] mux2
+    Xshift2 b1#32 bittwo[31:0] bittwo[29:0] digit#2 bitone[31:0] mux2
+    Xshift1 b0#32 bitone[31:0] bitone[30:0] digit output[31:0] mux2
+    Xswitch op0#32 output[31:0] output[0:31] fshift[31:0] mux2
+.ends
+
+
+* 4. Define the subcircuit alu32:
+.subckt alu32 a[31:0] b[31:0] alufn[5:0] f[31:0]
+    Xas32 a[31:0] b[31:0] alufn0 fas[31:0] n v z as32
+    Xshift32 a[31:0] b[4:0] alufn[1:0] fshift[31:0] shift32
+    Xbool32 a[31:0] b[31:0] alufn[3:0] fbool[31:0] bool32
+    Xcmp32 n v z alufn[2:1] fcmp[31:0] cmp32
+    Xselector alufn5#32 alufn4#32 fas[31:0] fshift[31:0] fbool[31:0] fcmp[31:0] f[31:0] mux4
+.ends
+
+
+* 5. Instantiate just one alu32 circuit and specify your circuit’s size in:
+* • Number of gates
+* • Square microns
+
+Xalu32 a[31:0] b[31:0] op[5:0] f[31:0] alu32
+
+
+* 6. Provide test cases for 15 possible ALU operations!
+
+Wa a[31:0] nrz(0, 5, 60ns, 0ns, 0.001ns, 0.001ns)  
++ 32
+Wb b[31:0] nrz(0, 5, 60ns, 0ns, 0.001ns, 0.001ns) 
++ 1
+
+Wop op[5:0] nrz(0, 5, 30ns, 0ns, 0.001ns, 0.001ns)
++ 0b000000 0b000001 0b100000 0b100001 0b100011 0b011000 0b011110 0b110011 0b110101
+
+.tran 600ns
+.plot b(op[5:0])
+.plot sd(f[31:0])
+
+
+
