@@ -63,25 +63,32 @@ Xcmp32 n v z op[2:1] fcmp[31:0] cmp32
 
 
 * 3. Define the subcircuit shift32:
+* shift16 shifts by 5 bits
+* shift8 shifts by 4 bits
+* shift4 shifts by 3 bits
+* shift2 shifts by 2 bits
+* shift1 shifts by 1 bit
 .subckt shift32 a[31:0] b[4:0] op[1:0] fshift[31:0]
     Xbits op0#32 a[31:0] a[0:31] bits[31:0] mux2
     Xdigit op1 a31 digit and2
-    Xshift16 b4#32 bits[31:0] bits[15:0] digit#16 bitfour[31:0] mux2
-    Xshift8 b3#32 bitfour[31:0] bitfour[23:0] digit#8 bitthree[31:0] mux2
-    Xshift4 b2#32 bitthree[31:0] bitthree[27:0] digit#4 bittwo[31:0] mux2
-    Xshift2 b1#32 bittwo[31:0] bittwo[29:0] digit#2 bitone[31:0] mux2
-    Xshift1 b0#32 bitone[31:0] bitone[30:0] digit output[31:0] mux2
-    Xswitch op0#32 output[31:0] output[0:31] fshift[31:0] mux2
+    Xshift16 b4#32 bits[31:0] bits[15:0] digit#16 bitshift4[31:0] mux2
+    Xshift8 b3#32 bitshift4[31:0] bitshift4[23:0] digit#8 bitshift3[31:0] mux2
+    Xshift4 b2#32 bitshift3[31:0] bitshift3[27:0] digit#4 bitshift2[31:0] mux2
+    Xshift2 b1#32 bitshift2[31:0] bitshift2[29:0] digit#2 bitshift1[31:0] mux2
+    Xshift1 b0#32 bitshift1[31:0] bitshift1[30:0] digit output[31:0] mux2
+    Xout op0#32 output[31:0] output[0:31] fshift[31:0] mux2
 .ends
 
 
 * 4. Define the subcircuit alu32:
+* alufn is a 6 bit input that determines the operation to use
+* 
 .subckt alu32 a[31:0] b[31:0] alufn[5:0] f[31:0]
     Xas32 a[31:0] b[31:0] alufn0 fas[31:0] n v z as32
     Xshift32 a[31:0] b[4:0] alufn[1:0] fshift[31:0] shift32
     Xbool32 a[31:0] b[31:0] alufn[3:0] fbool[31:0] bool32
     Xcmp32 n v z alufn[2:1] fcmp[31:0] cmp32
-    Xselector alufn5#32 alufn4#32 fas[31:0] fshift[31:0] fbool[31:0] fcmp[31:0] f[31:0] mux4
+    Xoperationselect alufn5#32 alufn4#32 fas[31:0] fshift[31:0] fbool[31:0] fcmp[31:0] f[31:0] mux4
 .ends
 
 
@@ -99,8 +106,11 @@ Wa a[31:0] nrz(0, 5, 60ns, 0ns, 0.001ns, 0.001ns)
 Wb b[31:0] nrz(0, 5, 60ns, 0ns, 0.001ns, 0.001ns) 
 + 1
 
+* Operations in order:
+* Add || Subtract || Shift Left || Shift Right || A.Shift R || Bool AND || Bool OR || Cmp Equals || Cmp LThan || Cmp LThanEq
+
 Wop op[5:0] nrz(0, 5, 30ns, 0ns, 0.001ns, 0.001ns)
-+ 0b000000 0b000001 0b100000 0b100001 0b100011 0b011000 0b011110 0b110011 0b110101
++ 0b000000 0b000001 0b100000 0b100001 0b100011 0b011000 0b011110 0b110011 0b110101 0b110111
 
 .tran 600ns
 .plot b(op[5:0])
