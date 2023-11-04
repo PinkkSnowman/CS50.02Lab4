@@ -2,6 +2,9 @@
 .include "nominal.jsim"
 .include "stdcell.jsim"
 
+* Circuit Size: 1155 gates
+* 19063 microns^2
+
 *******************************************************************************
 * Plug-in your full adder and 32-bit ripple-carry adder subcircuits here.
 *******************************************************************************
@@ -102,9 +105,9 @@ Xalu32 a[31:0] b[31:0] op[5:0] f[31:0] alu32
 * 6. Provide test cases for 15 possible ALU operations!
 
 Wa a[31:0] nrz(0, 5, 60ns, 0ns, 0.001ns, 0.001ns)  
-+ 32 32 1
++ 32 32 32 0
 Wb b[31:0] nrz(0, 5, 60ns, 0ns, 0.001ns, 0.001ns) 
-+ 1 1 0
++ 1
 
 * Operations in order:
 * Add || Subtract || Shift Left || Shift Right || A.Shift R || Bool AND || Bool OR || Bool NOT A || Bool NOT B || Bool XOR || Bool NAND || Bool NOR || Cmp Equals || Cmp LThan || Cmp LThanEq
@@ -114,7 +117,7 @@ Wop op[5:0] nrz(0, 5, 30ns, 0ns, 0.001ns, 0.001ns)
 .tran 600ns
 .plot b(op[5:0])
 .plot sd(f[31:0])
-.plot fbool[31:0]
+.plot f[31:0]
 .plot sd(fcmp[31:0])
 
 
