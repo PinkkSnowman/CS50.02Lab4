@@ -1,0 +1,52 @@
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+| This sample .uasm program processes an array of ints (defined at the DATA
+| portion of this file), multiplying each int by 2.
+|
+| Important note: All registers r0 to r31 are initially set to 0.
+|
+| Happy hacking! - eric
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+.include beta.uasm          | include the standard predefined macros
+
+        LD(r31, DATA, r0)
+LOOP:   ADDC(r1, 4, r1)
+        LD(r1, DATA, r2)
+        SHLC(r2, 1, r2)
+        ST(r2, DATA, r1)
+        SUBC(r0, 1, r0)
+        BNE(r0, LOOP)
+
+        LD(r0, DATA, r0)
+        LD(r1, DATA, r2)
+        
+        LD(r31, r31, r3)
+
+SUM_LOOP:
+        LD(r2, DATA, r4)
+        BEQ(r4, EXIT_IF_ZERO)
+        DIV(r4, 2, r5)
+        BEQ(r5, IS_EVEN)
+
+        ADDC(r1, 4, r1)
+        BR(SUM_LOOP)
+
+IS_EVEN:
+        ADD(r3, r4, r3)
+        ADDC(r1, 4, r1)
+        BR(SUM_LOOP)
+
+EXIT_IF_ZERO:
+        ADDC(r2, 4, r2)
+        ST(r3, DATA, r2)
+
+        HALT()
+
+DATA:   LONG(5)
+        LONG(3)
+        LONG(-5)
+        LONG(12)
+        LONG(-14)
+        LONG(1)
+
