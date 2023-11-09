@@ -1,52 +1,25 @@
-|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-| This sample .uasm program processes an array of ints (defined at the DATA
-| portion of this file), multiplying each int by 2.
-|
-| Important note: All registers r0 to r31 are initially set to 0.
-|
-| Happy hacking! - eric
+.include beta.uasm
 
-|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        LD(r31, DATA, r0)   | r0 = length of array
 
-.include beta.uasm          | include the standard predefined macros
+LOOP:   BEQ(r0, END)        | checks if r0 = 0, ends if yes
+        ADDC(r1, 4, r1)     | adds 4 to r1 (main memory address)
+        SUBC(r0, 1, r0)     | decrements r0 indicating next step
+        LD(r1, DATA, r2)    | r2 = next int1
+        ANDC(r2, 1, r4)     | performs bitwise boolean AND on the two inputs; r4 = 1 if odd, 0 if even
+        BNE(r4, LOOP)       | loops back if r4 is not equal to 0
+        ADD(r3, r2, r3)     | adds r2 to r3, r3 = current sum of even numbers
+        BNE(r0, LOOP) 
 
-        LD(r31, DATA, r0)
-LOOP:   ADDC(r1, 4, r1)
-        LD(r1, DATA, r2)
-        SHLC(r2, 1, r2)
-        ST(r2, DATA, r1)
-        SUBC(r0, 1, r0)
-        BNE(r0, LOOP)
+END: 	ADDC(r1, 4, r1)
+        ST(r3, DATA, r1)    | the sum of the array's even numbers
+        HALT()       
 
-        LD(r0, DATA, r0)
-        LD(r1, DATA, r2)
-        
-        LD(r31, r31, r3)
 
-SUM_LOOP:
-        LD(r2, DATA, r4)
-        BEQ(r4, EXIT_IF_ZERO)
-        DIV(r4, 2, r5)
-        BEQ(r5, IS_EVEN)
-
-        ADDC(r1, 4, r1)
-        BR(SUM_LOOP)
-
-IS_EVEN:
-        ADD(r3, r4, r3)
-        ADDC(r1, 4, r1)
-        BR(SUM_LOOP)
-
-EXIT_IF_ZERO:
-        ADDC(r2, 4, r2)
-        ST(r3, DATA, r2)
-
-        HALT()
-
-DATA:   LONG(5)
-        LONG(3)
-        LONG(-5)
-        LONG(12)
-        LONG(-14)
-        LONG(1)
-
+| DATA marks the beginning of user data in memory.
+DATA:   LONG(5)             | length of the array
+        LONG(4)
+        LONG(2)
+        LONG(0)
+        LONG(6)
+        LONG(-9)
