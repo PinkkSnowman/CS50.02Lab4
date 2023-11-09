@@ -1,32 +1,26 @@
-|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-| This sample .uasm program processes an array of ints (defined at the DATA
-| portion of this file), multiplying each int by 2.
-|
-| Important note: All registers r0 to r31 are initially set to 0.
-|
-| Happy hacking! - eric
-
-|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-
 .include beta.uasm          | include the standard predefined macros
 
-        LD(r31, DATA, r0)   | r0 = memory pointed to by DATA (the array length)
-                            |  (r31 is a special register that is always zero,
-                            |   and this line can be shortened to LD(DATA, r0))
-LOOP:   ADDC(r1, 4, r1)     | r1 += 4 (that is, advance to the next int)
-        LD(r1, DATA, r2)    | r2 = memory pointed to by (r1 + DATA)
-        SHLC(r2, 1, r2)     | r2 = r2 << 1 (that is, multiply r2 by 2)
-        ST(r2, DATA, r1)    | memory pointed to by (DATA + r1) = r2
-        SUBC(r0, 1, r0)     | r0--
-        BNE(r0, LOOP)       | if r0 != 0, go back to LOOP
-        HALT()              | finish execution
-
+        LD(r31, DATA, r0)   | r0 = length of array
+        ADDC(r1, 4, r1)     | adds 4 to r1 (main memory address)
+        ST(r4, DATA, r1)    | r1 = 4, adds r1 to DATA to determine address to be written to, stores r4 (0) to that address
+        SUBC(r0, 1, r0)     | decrements r0 indicating next step
+        BEQ(r0, END)        | checks if r0 = 0, ends if yes
+        ADDC(r1, 4, r1)     | adds 4 to r1 (main memory address)
+        ADDC(r4, 1, r4)     | adds 1 to r4
+        ST(r4, DATA, r1)    | r1 = 8, adds r1 to DATA to determine address to be written to, stores r4 (1) to that address
+        SUBC(r0, 1, r0)     | decrements r0 indicating next step
+        BEQ(r0, END)        | checks if r0 = 0, ends if yes
+LOOP:   ADDC(r1,4,r1)       | r1 is the pointer to where the next spot in the sequence to fill
+        ADDC(r2,4,r2)       | r2 is the pointer to the integer to be added to the last integer
+        LD(r2, DATA, r3)    | r2 + DATA = EA that would be stored in r3
+        ADD(r4, r3, r4)     | r3 (2nd to last) adds to r4 (last)
+        ST(r4, DATA, r1)    | r4 will be stored to Address specified by DATA + r1
+        SUBC(r0, 1, r0)     | decrements r0 indicating next step
+        BNE(r0, LOOP)       | Loops back if r0 != 0
+END:    HALT()
+  
 |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
 | DATA marks the beginning of user data in memory.
-DATA:   LONG(5)             | length of the array
-        LONG(4)
-        LONG(2)
-        LONG(0)
-        LONG(6)
-        LONG(-9)
+DATA:   LONG(10)             | length of the array
+        
