@@ -1,32 +1,31 @@
-|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-| This sample .uasm program processes an array of ints (defined at the DATA
-| portion of this file), multiplying each int by 2.
-|
-| Important note: All registers r0 to r31 are initially set to 0.
-|
-| Happy hacking! - eric
+.include beta.uasm
 
-|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        LD(r31, DATA, r0)   | r0 = length of array
 
-.include beta.uasm          | include the standard predefined macros
+        BEQ(r0, END)           | Check if the array has 0 or 1 element
 
-        LD(r31, DATA, r0)   | r0 = memory pointed to by DATA (the array length)
-                            |  (r31 is a special register that is always zero,
-                            |   and this line can be shortened to LD(DATA, r0))
-LOOP:   ADDC(r1, 4, r1)     | r1 += 4 (that is, advance to the next int)
-        LD(r1, DATA, r2)    | r2 = memory pointed to by (r1 + DATA)
-        SHLC(r2, 1, r2)     | r2 = r2 << 1 (that is, multiply r2 by 2)
-        ST(r2, DATA, r1)    | memory pointed to by (DATA + r1) = r2
-        SUBC(r0, 1, r0)     | r0--
-        BNE(r0, LOOP)       | if r0 != 0, go back to LOOP
-        HALT()              | finish execution
+        ADDC(r2, 4, r2)      | r2 = address of the first element
+        ADDC(r3, 20, r3)     | r3 = address of the last element
 
-|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+REVERSE_LOOP:
+        LD(r2, DATA, r4)     | r4 = value of the first element
+        LD(r3, DATA, r5)     | r5 = value of the last element
+
+        ST(r5, DATA, r2)     | Swap: store the last element value in the first element
+        ST(r4, DATA, r3)     | Swap: store the first element value in the last element
+
+        ADDC(r2, 4, r2)      | Move to the next element from the start
+        SUBC(r3, 4, r3)      | Move to the next element from the end
+
+        CMPLE(r3, r2, r30)   | Check if we have not crossed the middle of the array
+        BEQ(r30, REVERSE_LOOP)    | Continue the loop if not crossed
+
+END:    HALT()
 
 | DATA marks the beginning of user data in memory.
 DATA:   LONG(5)             | length of the array
-        LONG(4)
-        LONG(2)
-        LONG(0)
-        LONG(6)
-        LONG(-9)
+        LONG(3)
+        LONG(-5)
+        LONG(12)
+        LONG(-14)
+        LONG(1)
