@@ -4,10 +4,10 @@
 
         BEQ(r0, END)         | Check if the array is empty
 
-        SHLC(r0, 2, r1)      | Get index of last element (shift two bits left)
+        MUL(r0, $4, r1)
 
         ADDC(r2, 4, r2)      | r2 = address of the first element
-        ADD(r3, r1, r3)      | r3 = address of the last element
+        ADDC(r3, r1, r3)     | r3 = address of the last element
 
 REVERSE_LOOP:
         LD(r2, DATA, r4)     | r4 = value of the first element
@@ -19,8 +19,8 @@ REVERSE_LOOP:
         ADDC(r2, 4, r2)      | Move to the next element from the start
         SUBC(r3, 4, r3)      | Move to the next element from the end
 
-        CMPLE(r3, r2, r30)   | Check if we have crossed the middle of the array
-        BEQ(r30, REVERSE_LOOP)    | Continue the loop if not crossed yet
+        CMPLE(r3, r2, r30)   | Check if we have not crossed the middle of the array
+        BEQ(r30, REVERSE_LOOP)    | Continue the loop if not crossed
 
 END:    HALT()
 
