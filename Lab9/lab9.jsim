@@ -3,6 +3,95 @@
 .include "stdcell.jsim"
 
 *******************************************************************************
+* full adder and 32-bit ripple-carry adder subcircuits
+*******************************************************************************
+
+.subckt fa a b carry_in sum_out carry_out
+    Xfirst a b sum1 nand2
+    Xsecond a sum1 sum2 nand2
+    Xthird b sum1 sum3 nand2
+    Xha_out sum2 sum3 ha_out nand2
+
+    Xfourth ha_out carry_in sum4 nand2
+    Xfifth ha_out sum4 sum5 nand2
+    Xsixth carry_in sum4 sum6 nand2
+    Xsum_out sum5 sum6 sum_out nand2
+    Xcarry_out sum4 sum1 carry_out nand2
+.ends
+
+.subckt add32 a[31:0] b[31:0] carry_in0 sum[31:0] carry_out[31:30]
+    Xfa a[31:0] b[31:0] carry_out[30:0] carry_in0 sum[31:0] carry_out[31:0] fa
+.ends
+
+*******************************************************************************
+* Subtractor
+*******************************************************************************
+
+.subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z
+    .connect op0 op0[31:0]
+    xinverter b[31:0] invertedb[31:0] inverter
+    xop0 op0[31:0] b[31:0] invertedb[31:0] z[31:0] mux2
+    xadd32 a[31:0] z[31:0] op0 fas[31:0] v1 v2 add32
+    .connect fas31 n
+    xv v1 v2 v xor2
+    xzfirst fas[31:24] fas[23:16] fas[15:8] fas[7:0] zfirst[7:0] nor4
+    xzsecond zfirst[7:6] zfirst[5:4] zfirst[3:2] zfirst[1:0] zsecond[1:0] nand4
+    xz zsecond1 zsecond0 z nor2
+.ends
+
+*******************************************************************************
+* Comparator
+*******************************************************************************
+
+.subckt cmp32 n v z op[2:1] fcmp[31:0]
+    xzero zero constant0
+    .connect zero fcmp[31:1]
+    xop2 op2 zero nv first mux2
+    xor n v nv xor2
+    xop1 op1 zero z second mux2
+    xoutput first second fcmp0 or2
+.ends
+
+* 2. Define the subcircuit bool32:
+.subckt bool32 a[31:0] b[31:0] op[3:0] fbool[31:0]
+    Xfbool a[31:0] b[31:0] op0#32 op1#32 op2#32 op3#32 fbool[31:0] mux4
+.ends
+
+
+* 3. Define the subcircuit shift32:
+* shift16 shifts by 5 bits
+* shift8 shifts by 4 bits
+* shift4 shifts by 3 bits
+* shift2 shifts by 2 bits
+* shift1 shifts by 1 bit
+* if op0 = 0, shift left; op0 = 1,shift right
+* doing an AND operation on the MSB of the input and op1 identify 
+* what kind of shift right by. If op1 = 1, then arithmetic shift right
+
+.subckt shift32 a[31:0] b[4:0] op[1:0] fshift[31:0]
+  Xbits op0#32 a[31:0] a[0:31] bits[31:0] mux2
+  Xdigit op1 a31 digit and2
+  Xshift16 b4#32 bits[31:0] bits[15:0] digit#16 bitfour[31:0] mux2
+  Xshift8 b3#32 bitfour[31:0] bitfour[23:0] digit#8 bitthree[31:0] mux2
+  Xshift4 b2#32 bitthree[31:0] bitthree[27:0] digit#4 bittwo[31:0] mux2
+  Xshift2 b1#32 bittwo[31:0] bittwo[29:0] digit#2 bitone[31:0] mux2
+  Xshift1 b0#32 bitone[31:0] bitone[30:0] digit output[31:0] mux2
+  Xswitch op0#32 output[31:0] output[0:31] fshift[31:0] mux2
+.ends
+
+
+* 4. Define the subcircuit alu32:
+* alufn is a 6 bit input that determines the operation to use
+* 
+.subckt alu32 a[31:0] b[31:0] alufn[5:0] f[31:0]
+    Xas32 a[31:0] b[31:0] alufn0 fas[31:0] n v z as32
+    Xshift32 a[31:0] b[4:0] alufn[1:0] fshift[31:0] shift32
+    Xbool32 a[31:0] b[31:0] alufn[3:0] fbool[31:0] bool32
+    Xcmp32 n v z alufn[2:1] fcmp[31:0] cmp32
+    Xoperationselect alufn5#32 alufn4#32 fas[31:0] fshift[31:0] fbool[31:0] fcmp[31:0] f[31:0] mux4
+.ends
+
+*******************************************************************************
 * The $memory statement defines a memory device. Each memory device comes with
 * one or more ports, each of which may be used for either reading or writing.
 *
@@ -61,7 +150,7 @@ Xmemory  vdd  0    0   pc[8:2]    inst[31:0]
 *******************************************************************************
 Xregisters  vdd  0    0      ra1_[4:0]  rd1_[31:0]
 +           vdd  0    0      ra2_[4:0]  rd2_[31:0]
-+           0    clk  werf  wa[4:0]    wd[31:0]
++           0    clk  werf_  wa[4:0]    wd[31:0]
 + $memory width=32 nlocations=32 contents=(
 +   0 0 0 0 0 0 0 0
 +   0 0 0 0 0 0 0 0
@@ -78,22 +167,26 @@ Xregisters  vdd  0    0      ra1_[4:0]  rd1_[31:0]
 * 5-way AND gate to check if the 5 bits of wa[4:0] are all equal to 1, and if it is,
 * it gets passed to a 2 way multiplexer to turn off the werf signal by setting it to 0.
 
-.subckt and5 a[4:0] z
-	Xand4 a[4:1] c and4
-	Xand2 c a0 z and2
-.ends
+* .subckt and5 a[4:0] z
+* 	Xand4 a[4:1] c and4
+* 	Xand2 c a0 z and2
+* .ends
 
-.subckt werfoff c a b werf_
-  Xmux2 c b a werf_ mux2
-  .connect werf werf_
-.ends
+* .subckt werfoff c a b werf_
+*   Xmux2 c b a werf_ mux2
+*   .connect werf werf_
+* .ends
 
-Xid zero constant0
-Xide one constant1
+* Xid zero constant0
+* Xide one constant1
 
-Xand5 wa[4:0] andresult and5
+* Xand5 wa[4:0] andresult and5
 
-Xwerfoff andresult zero one out werfoff
+* Xwerfoff andresult zero one werfout werfoff
+
+xwerf_one wa4 wa3 wa2 wa1 werf_one and4
+xwerf_two werf_one wa0 werf_two nand2
+xwerf_ werf werf_two werftester and2
 
 *******************************************************************************
 * Xcontrol is a read-only memory (ROM) that defines what to feed into the
@@ -112,20 +205,20 @@ Xcontrol  vdd  0  0  z opcode[5:0]  control[13:0]
 +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
 +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
 +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
-+   0b00011001100001 0b00110001100110 0b11000000000000 0b10000001101101 0b11000000000000 0b00000001110101 0b01000001111001 0b11000000000000
-+   0b00000110000001 0b00000110000101 0b11000000000000 0b11000000000000 0b00000110010001 0b00000110010101 0b00000110011001 0b11000000000000
-+   0b00000110100001 0b00000110100101 0b00000110101001 0b11000000000000 0b00000110110001 0b00000110110101 0b00000110111001 0b11000000000000
-+   0b00010111000001 0b00010111000101 0b11000000000000 0b11000000000000 0b00010111010001 0b00010111010101 0b00010111011001 0b11000000000000
-+   0b00010111100001 0b00010111100101 0b00010111101001 0b11000000000000 0b00010111110001 0b00010111110101 0b00010111111001 0b11000000000000
++   0b00011000000001 0b00110000000010 0b11000000000000 0b10000000000001 0b11000000000000 0b00000000000001 0b01000000000001 0b11000000000000
++   0b00000100000001 0b00000100000101 0b11000000000000 0b11000000000000 0b00000111001101 0b00000111010101 0b00000111011101 0b11000000000000
++   0b00000101100001 0b00000101111001 0b00000101011001 0b11000000000000 0b00000110000001 0b00000110000101 0b00000110001101 0b11000000000000
++   0b00010100000001 0b00010100000101 0b11000000000000 0b11000000000000 0b00010111001101 0b00010111010101 0b00010111011101 0b11000000000000
++   0b00010101100001 0b00010101111001 0b00010101011001 0b11000000000000 0b00010110000001 0b00010110000101 0b00010110001101 0b11000000000000
 +
 +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
 +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
 +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
-+   0b00011001100001 0b00110001100110 0b11000000000000 0b10000001101101 0b11000000000000 0b01000001110101 0b00000001111001 0b11000000000000
-+   0b00000110000001 0b00000110000101 0b11000000000000 0b11000000000000 0b00000110010001 0b00000110010101 0b00000110011001 0b11000000000000
-+   0b00000110100001 0b00000110100101 0b00000110101001 0b11000000000000 0b00000110110001 0b00000110110101 0b00000110111001 0b11000000000000
-+   0b00010111000001 0b00010111000101 0b11000000000000 0b11000000000000 0b00010111010001 0b00010111010101 0b00010111011001 0b11000000000000
-+   0b00010111100001 0b00010111100101 0b00010111101001 0b11000000000000 0b00010111110001 0b00010111110101 0b00010111111001 0b11000000000000
++   0b00011000000001 0b00110000000010 0b11000000000000 0b10000000000001 0b11000000000000 0b01000000000001 0b00000000000001 0b11000000000000
++   0b00000100000001 0b00000100000101 0b11000000000000 0b11000000000000 0b00000111001101 0b00000111010101 0b00000111011101 0b11000000000000
++   0b00000101100001 0b00000101111001 0b00000101011001 0b11000000000000 0b00000110000001 0b00000110000101 0b00000110001101 0b11000000000000
++   0b00010100000001 0b00010100000101 0b11000000000000 0b11000000000000 0b00010111001101 0b00010111010101 0b00010111011101 0b11000000000000
++   0b00010101100001 0b00010101111001 0b00010101011001 0b11000000000000 0b00010110000001 0b00010110000101 0b00010110001101 0b11000000000000
 + )
 
 *******************************************************************************
@@ -145,8 +238,7 @@ Xjcontrolb control11      ra2sel     join
 Xjcontrolc control10      bsel       join
 Xjcontrold control[9:8]   wdsel[1:0] join
 Xjcontrole control[7:2]   alufn[5:0] join
-Xjcontrolf control1       wr         join
-Xjcontrolg control0       werf       join
+Xjcontrolf control0       werf       join
 
 *******************************************************************************
 * Also connect our instruction signal lines to our opcode, rc, ra, rb, and c.
@@ -163,24 +255,77 @@ Xjinste inst[15:0]  c[15:0]     join
 * Note that you will need to replace this with a real program counter circuit
 * in the final lab!
 *******************************************************************************
-Xjpc clk[8:2] pc[8:2] join
-.connect 0 pc[1:0]
+* Xjpc clk[8:2] pc[8:2] join
+* .connect 0 pc[1:0]
+*******************************************************************************
+.connect clk clk3
+
+* clk2 10ns clk3 20ns clk4 40
 
 *******************************************************************************
 * Temporarily connect other undefined signals.
 * Note that you will need to remove these signals from this section once you
 * connect them elsewhere!
 *******************************************************************************
-.connect vdd clk ra1_[4:0] ra2_[4:0] wa[4:0] wd[31:0] mema[8:0] memwd[31:0]
-.connect 0 z
+xconnect1 ra[4:0] ra1_[4:0] join
+xconnect2 rc[4:0] wa[4:0] join
+xconnect3 rd1_[31:0] a[31:0] join
+xconnect4 rd2_[31:0] memwd[31:0] join
+xconnect5 f[31:0] mema[31:0] join
+
+
+* MUXs for PCSEL, RA2SEL, BSEL, WDSEL
+xpcselMUX pcsel[0]#32 pcsel[1]#32 PCplusfour[31:0] BT[31:0] JT[31:0] pc[31:0] pcselOutput[31:0] mux4
+xra2selMUX ra2sel#5 rb[4:0] rc[4:0] ra2_[4:0] mux2
+xbselMUX bsel#32 rd2_[31:0] c[15]#16 c[15:0] b[31:0] mux2
+xwdselMUX wdsel[0]#32 wdsel[1]#32 PCplusfour[31:0] f[31:0] memrd[31:0] 0#32 wd[31:0] mux4
+
+
+* Program Counter (PC)
+xconnect6 pc[0] PCplusfour[0] join
+xconnect7 pc[1] PCplusfour[1] join
+xplusFour pc[2] vdd 0 PCplusfour[2] carry_outPC[2] fa
+xPCplusfour pc[31:3] 0#29 carry_outPC[30:2] PCplusfour[31:3] carry_outPC[31:3] fa
+
+
+* NOR gate for Z
+* -- NOR all the bits of rd1 (from registers) == Z
+xnorzOne rd1_[31:24] rd1_[23:16] rd1_[15:8] rd1_[7:0] norzOne[7:0] nor4
+xnorzTwo norzOne[7:6] norzOne[5:4] norzOne[3:2] norzOne[1:0] norzTwo[1:0] nand4
+xnorz norzTwo[1] norzTwo[0] z nor2
+
+
+
+* Jump Target (JT)
+xconnect8 rd1_[31:0] JT[31:0] join
+
+
+* Branch Target (PC + 4 + 4C)
+* shifts C to the left by 2 (multiplies by 4) 
+* converts C into nuber of addresses to jump 
+* PCplusfour is added
+xBT PCplusfour[31:0] c[13]#16 c[13:0] 0#2 0 BT[31:0] carry_outBT[31:30] add32
+
+
+* Reset Logic
+* "boot up" of the circuit // resets all the signals
+* causes delay at the start
+* without this, PC WR and WERF will be underfined/invalid
+xPCreset reset#32 pcselOutput[31:0] 0#32 PCreset[31:0] mux2
+xPCdreg PCreset[31:0] clk#32 pc[31:0] dreg
+
+xWFreset reset control1 0 wr mux2 
+xWERFreset reset werftester 0 werf_ mux2
 
 *******************************************************************************
 * Plot some signals together (or else we won't have enough space in the plot
 * window)
 *******************************************************************************
 Xjdisplaya ra2_b_wdsel[3:0] ra2sel bsel wdsel[1:0] join
-Xjdisplayb wr_werf[1:0]     wr werf               join
+Xjdisplayb wr_werf[1:0]     wr werf_               join
 
+Wreset reset nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 1 0 
 *******************************************************************************
 * This section plots the following signals in order:
 * - pc (program counter)
@@ -207,7 +352,9 @@ Xjdisplayb wr_werf[1:0]     wr werf               join
 *            lab, z should instead be computed by some circuit instead of
 *            connected to ground or vdd!)
 *******************************************************************************
-.tran 1280ns
+Xalu32 a[31:0] b[31:0] alufn[5:0] f[31:0] alu32
+
+.tran 5120ns
 .plot pc[8:0]
 .plot betaop(opcode[5:0])
 .plot d(ra[4:0])
